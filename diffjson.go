@@ -67,18 +67,10 @@ func run() error {
 	}
 
 	diffs := lineDiffs(j1, j2)
+	formatter := newDefaultFormatter(diffs)
 	out := colorable.NewColorable(os.Stdout)
 
-	for _, v := range diffs {
-		switch v.Type {
-		case diffmatchpatch.DiffInsert:
-			fmt.Fprintf(out, "+ \x1b[%dm%s\x1b[%dm", red, v.Text, resetColor)
-		case diffmatchpatch.DiffDelete:
-			fmt.Fprintf(out, "- \x1b[%dm%s\x1b[%dm", green, v.Text, resetColor)
-		default:
-			fmt.Fprintf(out, "  %s", v.Text)
-		}
-	}
+	fmt.Fprint(out, formatter.diffString())
 
 	return nil
 }
