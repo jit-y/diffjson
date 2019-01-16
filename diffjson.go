@@ -12,12 +12,6 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-const (
-	resetColor = 0
-	green      = 31
-	red        = 32
-)
-
 const usage = `
 Usage: diffjson [options] </path/to/file> </path/to/file>
 `
