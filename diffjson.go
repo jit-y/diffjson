@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -34,6 +35,13 @@ func (l *labelNames) String() string {
 }
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	var (
 		labels  labelNames
 		unified int
@@ -45,62 +53,23 @@ func main() {
 	flags.Parse(os.Args[1:])
 
 	args := flags.Args()
-
-	if len(flags.Args()) < 2 {
-		fmt.Fprint(os.Stderr, usage)
-		flags.PrintDefaults()
-
-		os.Exit(1)
+	if len(args) < 2 {
+		return errors.New(usage)
 	}
 
-	dmp := diffmatchpatch.New()
+	j1, err := prettyPrint(args[0])
+	if err != nil {
+		return err
+	}
+	j2, err := prettyPrint(args[1])
+	if err != nil {
+		return err
+	}
+
+	diffs := lineDiffs(j1, j2)
 	out := colorable.NewColorable(os.Stdout)
 
-	filepath1, err := filepath.Abs(args[0])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-
-		os.Exit(1)
-	}
-	file1, err := os.Open(filepath1)
-	if err != nil {
-		fmt.Fprint(os.Stderr, usage)
-		flags.PrintDefaults()
-
-		os.Exit(1)
-	}
-	filepath2, err := filepath.Abs(args[1])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-
-		os.Exit(1)
-	}
-	file2, err := os.Open(filepath2)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-
-		os.Exit(1)
-	}
-
-	j1, err := ppjson.NewPrinter(file1).Pretty()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-
-		os.Exit(1)
-	}
-	j2, err := ppjson.NewPrinter(file2).Pretty()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-
-		os.Exit(1)
-	}
-
-	c1, c2, la := dmp.DiffLinesToChars(j1, j2)
-	diffs := dmp.DiffMain(c1, c2, false)
-
-	result := dmp.DiffCharsToLines(diffs, la)
-
-	for _, v := range result {
+	for _, v := range diffs {
 		switch v.Type {
 		case diffmatchpatch.DiffInsert:
 			fmt.Fprintf(out, "+ \x1b[%dm%s\x1b[%dm", red, v.Text, resetColor)
@@ -110,4 +79,28 @@ func main() {
 			fmt.Fprintf(out, "  %s", v.Text)
 		}
 	}
+
+	return nil
+}
+
+func prettyPrint(pathToFile string) (string, error) {
+	abs, err := filepath.Abs(pathToFile)
+	if err != nil {
+		return "", err
+	}
+
+	file, err := os.Open(abs)
+	if err != nil {
+		return "", err
+	}
+
+	return ppjson.NewPrinter(file).Pretty()
+}
+
+func lineDiffs(a, b string) []diffmatchpatch.Diff {
+	dmp := diffmatchpatch.New()
+	c1, c2, la := dmp.DiffLinesToChars(a, b)
+	diffs := dmp.DiffMain(c1, c2, false)
+
+	return dmp.DiffCharsToLines(diffs, la)
 }
