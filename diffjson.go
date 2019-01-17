@@ -76,6 +76,7 @@ func prettyPrint(pathToFile string) (string, error) {
 	}
 
 	file, err := os.Open(abs)
+	defer file.Close()
 	if err != nil {
 		return "", err
 	}
