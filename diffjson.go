@@ -30,25 +30,31 @@ func (l *labelNames) String() string {
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func run() error {
 	var (
-		labels  labelNames
-		unified int
+		labels         labelNames
+		unified        bool
+		unifiedWithNum int
 	)
+	out := colorable.NewColorable(os.Stdout)
 
 	flags := flag.NewFlagSet("diffjson", flag.ContinueOnError)
+	flags.Usage = func() {
+		fmt.Fprint(out, usage)
+	}
 	flags.Var(&labels, "L", "label")
-	flags.IntVar(&unified, "u", 3, "unified")
+	flags.BoolVar(&unified, "u", false, "unified")
+	flags.IntVar(&unifiedWithNum, "U", 3, "unified=NUM")
 	flags.Parse(os.Args[1:])
 
 	args := flags.Args()
 	if len(args) < 2 {
-		return errors.New(usage)
+		return errors.New("missing argument")
 	}
 
 	j1, err := prettyPrint(args[0])
@@ -62,7 +68,6 @@ func run() error {
 
 	diffs := lineDiffs(j1, j2)
 	formatter := newDefaultFormatter(diffs)
-	out := colorable.NewColorable(os.Stdout)
 
 	fmt.Fprint(out, formatter.diffString())
 
